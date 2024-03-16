@@ -7,6 +7,7 @@ from misc import printProgressBar
 
 
 def rm_mkdir(dir_path):
+    print("eren")
     if os.path.exists(dir_path):
         shutil.rmtree(dir_path)
         print('Remove path - %s'%dir_path)
@@ -14,7 +15,7 @@ def rm_mkdir(dir_path):
     print('Create path - %s'%dir_path)
 
 def main(config):
-
+    print("erdem")
     rm_mkdir(config.train_path)
     rm_mkdir(config.train_GT_path)
     rm_mkdir(config.valid_path)
@@ -26,12 +27,18 @@ def main(config):
     data_list = []
     GT_list = []
 
-    for filename in filenames:
-        ext = os.path.splitext(filename)[-1]
-        if ext =='.jpg':
-            filename = filename.split('_')[-1][:-len('.jpg')]
-            data_list.append(filename+'.jpg')
-            GT_list.append(filename+'.png')
+    for path in filenames:
+    # Extract the base name (e.g., "german_shorthaired_46.png")
+      filename_with_extension = os.path.basename(path)
+    
+    # Split the filename and extension, keeping only the filename part
+      filename_without_extension = os.path.splitext(filename_with_extension)[0]
+    
+    # Assuming you want to create corresponding pairs of .jpg and .png filenames
+      if os.path.splitext(path)[-1] == '.jpg':
+        data_list.append(filename_without_extension + '.jpg')
+        GT_list.append(filename_without_extension + '.png')
+
 
     num_total = len(data_list)
     num_train = int((config.train_ratio/(config.train_ratio+config.valid_ratio+config.test_ratio))*num_total)
@@ -96,15 +103,15 @@ if __name__ == '__main__':
     parser.add_argument('--test_ratio', type=float, default=0.2)
 
     # data path
-    parser.add_argument('--origin_data_path', type=str, default='../ISIC/dataset/ISIC2018_Task1-2_Training_Input')
-    parser.add_argument('--origin_GT_path', type=str, default='../ISIC/dataset/ISIC2018_Task1_Training_GroundTruth')
+    parser.add_argument('--origin_data_path', type=str, default='./drive/MyDrive/CS484_dataset/images')
+    parser.add_argument('--origin_GT_path', type=str, default='./drive/MyDrive/CS484_dataset/images_GT/trimaps')
     
-    parser.add_argument('--train_path', type=str, default='./dataset/train/')
-    parser.add_argument('--train_GT_path', type=str, default='./dataset/train_GT/')
-    parser.add_argument('--valid_path', type=str, default='./dataset/valid/')
-    parser.add_argument('--valid_GT_path', type=str, default='./dataset/valid_GT/')
-    parser.add_argument('--test_path', type=str, default='./dataset/test/')
-    parser.add_argument('--test_GT_path', type=str, default='./dataset/test_GT/')
+    parser.add_argument('--train_path', type=str, default='./drive/MyDrive/CS484_dataset/images/train/')
+    parser.add_argument('--train_GT_path', type=str, default='./drive/MyDrive/CS484_dataset/images_GT/train/')
+    parser.add_argument('--valid_path', type=str, default='./drive/MyDrive/CS484_dataset/images/valid/')
+    parser.add_argument('--valid_GT_path', type=str, default='./drive/MyDrive/CS484_dataset/images_GT/valid/')
+    parser.add_argument('--test_path', type=str, default='./drive/MyDrive/CS484_dataset/images/test/')
+    parser.add_argument('--test_GT_path', type=str, default='./drive/MyDrive/CS484_dataset/images_GT/test/')
 
     config = parser.parse_args()
     print(config)
