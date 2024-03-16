@@ -91,7 +91,7 @@ class Solver(object):
 
 	def reset_grad(self):
 		"""Zero the gradient buffers."""
-		self.unet.zero_grad()
+		self.optimizer.zero_grad()
 
 	def compute_accuracy(self,SR,GT):
 		SR_flat = SR.view(-1)
@@ -110,7 +110,7 @@ class Solver(object):
 
 		#====================================== Training ===========================================#
 		#===========================================================================================#
-		
+		print("---- solver train başladı")
 		unet_path = os.path.join(self.model_path, '%s-%d-%.4f-%d-%.4f.pkl' %(self.model_type,self.num_epochs,self.lr,self.num_epochs_decay,self.augmentation_prob))
 
 		# U-Net Train
@@ -139,7 +139,7 @@ class Solver(object):
 
 				for i, (images, GT) in enumerate(self.train_loader):
 					# GT : Ground Truth
-
+					print("batch no: ", i)
 					images = images.to(self.device)
 					GT = GT.to(self.device)
 
@@ -150,6 +150,7 @@ class Solver(object):
 
 					GT_flat = GT.view(GT.size(0),-1)
 					loss = self.criterion(SR_flat,GT_flat)
+					print("loss: ", loss, "batch no: ", i)
 					epoch_loss += loss.item()
 
 					# Backprop + optimize
