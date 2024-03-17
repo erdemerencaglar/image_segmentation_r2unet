@@ -25,7 +25,7 @@ class Solver(object):
 		self.optimizer = None
 		self.img_ch = config.img_ch
 		self.output_ch = config.output_ch
-		self.criterion = torch.nn.BCELoss()
+		self.criterion = torch.nn.CrossEntropyLoss()
 		self.augmentation_prob = config.augmentation_prob
 
 		# Hyper-parameters
@@ -48,6 +48,21 @@ class Solver(object):
 		self.mode = config.mode
 
 		self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+		if torch.cuda.is_available():
+
+			# choose the GPU you want to use 
+			gpu_ids = [0, 1, 2, 3, 4, 5, 6, 7]  # IDs of all available GPUs
+
+			# set the CUDA devices
+			os.environ["CUDA_VISIBLE_DEVICES"]="1"   # This environment variable controls which GPU devices are visible to your CUDA-enabled application. 
+			# os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, gpu_ids))
+			torch.cuda.set_device(gpu_ids[1])
+			device = torch.device('cuda:' + str(gpu_ids[1]))
+
+			print(f"Device: {device}")
+		else:
+			raise RuntimeError("CUDA (GPU) is not available. Make sure you have installed the necessary drivers and libraries.")
+		
 		self.model_type = config.model_type
 		self.t = config.t
 		self.build_model()
@@ -55,13 +70,13 @@ class Solver(object):
 	def build_model(self):
 		"""Build generator and discriminator."""
 		if self.model_type =='U_Net':
-			self.unet = U_Net(img_ch=3,output_ch=1)
+			self.unet = U_Net(img_ch=3,output_ch=self.output_ch)
 		elif self.model_type =='R2U_Net':
-			self.unet = R2U_Net(img_ch=3,output_ch=1,t=self.t)
+			self.unet = R2U_Net(img_ch=3,output_ch=self.output_ch,t=self.t)
 		elif self.model_type =='AttU_Net':
-			self.unet = AttU_Net(img_ch=3,output_ch=1)
+			self.unet = AttU_Net(img_ch=3,output_ch=self.output_ch)
 		elif self.model_type == 'R2AttU_Net':
-			self.unet = R2AttU_Net(img_ch=3,output_ch=1,t=self.t)
+			self.unet = R2AttU_Net(img_ch=3,output_ch=self.output_ch,t=self.t)
 			
 
 		self.optimizer = optim.Adam(list(self.unet.parameters()),
@@ -110,9 +125,9 @@ class Solver(object):
 
 		#====================================== Training ===========================================#
 		#===========================================================================================#
-		print("---- solver train başladı")
+		print("---- solver train started")
 		unet_path = os.path.join(self.model_path, '%s-%d-%.4f-%d-%.4f.pkl' %(self.model_type,self.num_epochs,self.lr,self.num_epochs_decay,self.augmentation_prob))
-
+		print('Device: ', self.device)
 		# U-Net Train
 		if os.path.isfile(unet_path):
 			# Load the pretrained Encoder
@@ -124,7 +139,7 @@ class Solver(object):
 			best_unet_score = 0.
 			
 			for epoch in range(self.num_epochs):
-
+				torch.cuda.empty_cache()   # ?? Check if it works
 				self.unet.train(True)
 				epoch_loss = 0
 				
@@ -137,19 +152,39 @@ class Solver(object):
 				DC = 0.		# Dice Coefficient
 				length = 0
 
+				all_epoch_metric_info = []
+
 				for i, (images, GT) in enumerate(self.train_loader):
 					# GT : Ground Truth
 					print("batch no: ", i)
 					images = images.to(self.device)
 					GT = GT.to(self.device)
+					GT[GT != 0.0078] = 1
+					GT[GT == 0.0078] = 0
+					GT = torch.squeeze(GT, dim=1)
+					GT = GT.long()
+					print('GT.dtype', GT.dtype)
 
 					# SR : Segmentation Result
 					SR = self.unet(images)
-					SR_probs = F.sigmoid(SR)
-					SR_flat = SR_probs.view(SR_probs.size(0),-1)
+					# finding argmax and fixing missing dimension due to argmax
+					# SR = torch.argmax(SR, dim=1)
+					# SR = torch.unsqueeze(SR, dim=1)
+					print('SR.dtype', SR.dtype)
+					print('-------------SR: \n', SR)
+					print('-------------GT: \n', GT)
+					print('---------------------- SR.size(): ', SR.size() )
+					print('---------------------- GT.size(): ', GT.size() )
+					# SR_probs = F.sigmoid(SR)
+					SR_probs = SR
 
+					SR_flat = SR_probs.view(SR_probs.size(0),-1)
+					print('---------------------- SR_flat.size(): ', SR_flat.size() )
 					GT_flat = GT.view(GT.size(0),-1)
-					loss = self.criterion(SR_flat,GT_flat)
+					print('---------------------- GT_flat.size(): ', GT_flat.size() )
+
+					# loss = self.criterion(SR_flat,GT_flat)
+					loss = self.criterion(SR,GT)
 					print("loss: ", loss, "batch no: ", i)
 					epoch_loss += loss.item()
 
@@ -158,6 +193,7 @@ class Solver(object):
 					loss.backward()
 					self.optimizer.step()
 
+					SR = torch.argmax(SR, dim=1) # to get the classes
 					acc += get_accuracy(SR,GT)
 					SE += get_sensitivity(SR,GT)
 					SP += get_specificity(SR,GT)
@@ -175,6 +211,9 @@ class Solver(object):
 				JS = JS/length
 				DC = DC/length
 
+				epoch_metric_info = {'epoch': epoch, 'acc': acc, 'SE': SE, 'SP': SP, 'PC': PC, 'F1':F1, 'JS': JS, 'DC': DC}
+				all_epoch_metric_info.append(epoch_metric_info)
+				
 				# Print the log info
 				print('Epoch [%d/%d], Loss: %.4f, \n[Training] Acc: %.4f, SE: %.4f, SP: %.4f, PC: %.4f, F1: %.4f, JS: %.4f, DC: %.4f' % (
 					  epoch+1, self.num_epochs, \
@@ -249,7 +288,8 @@ class Solver(object):
 					best_unet = self.unet.state_dict()
 					print('Best %s model score : %.4f'%(self.model_type,best_unet_score))
 					torch.save(best_unet,unet_path)
-					
+
+			print('all_epoch_metric_info: \n', all_epoch_metric_info)		
 			#===================================== Test ====================================#
 			del self.unet
 			del best_unet

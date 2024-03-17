@@ -7,7 +7,6 @@ from misc import printProgressBar
 
 
 def rm_mkdir(dir_path):
-    print("eren")
     if os.path.exists(dir_path):
         shutil.rmtree(dir_path)
         print('Remove path - %s'%dir_path)
@@ -15,7 +14,6 @@ def rm_mkdir(dir_path):
     print('Create path - %s'%dir_path)
 
 def main(config):
-    print("erdem")
     rm_mkdir(config.train_path)
     rm_mkdir(config.train_GT_path)
     rm_mkdir(config.valid_path)
@@ -103,15 +101,15 @@ if __name__ == '__main__':
     parser.add_argument('--test_ratio', type=float, default=0.2)
 
     # data path
-    parser.add_argument('--origin_data_path', type=str, default='./drive/MyDrive/CS484_dataset/images')
-    parser.add_argument('--origin_GT_path', type=str, default='./drive/MyDrive/CS484_dataset/images_GT/trimaps')
+    parser.add_argument('--origin_data_path', type=str, default='../../pet_dataset_original/images')
+    parser.add_argument('--origin_GT_path', type=str, default='../../pet_dataset_original/annotations/trimaps')
     
-    parser.add_argument('--train_path', type=str, default='./drive/MyDrive/CS484_dataset/images/train/')
-    parser.add_argument('--train_GT_path', type=str, default='./drive/MyDrive/CS484_dataset/images_GT/train/')
-    parser.add_argument('--valid_path', type=str, default='./drive/MyDrive/CS484_dataset/images/valid/')
-    parser.add_argument('--valid_GT_path', type=str, default='./drive/MyDrive/CS484_dataset/images_GT/valid/')
-    parser.add_argument('--test_path', type=str, default='./drive/MyDrive/CS484_dataset/images/test/')
-    parser.add_argument('--test_GT_path', type=str, default='./drive/MyDrive/CS484_dataset/images_GT/test/')
+    parser.add_argument('--train_path', type=str, default='../../pet_dataset/train/')
+    parser.add_argument('--train_GT_path', type=str, default='../../pet_dataset/train_GT/')
+    parser.add_argument('--valid_path', type=str, default='../../pet_dataset/valid/')
+    parser.add_argument('--valid_GT_path', type=str, default='../../pet_dataset/valid_GT/')
+    parser.add_argument('--test_path', type=str, default='../../pet_dataset/test/')
+    parser.add_argument('--test_GT_path', type=str, default='../../pet_dataset/test_GT/')
 
     config = parser.parse_args()
     print(config)
